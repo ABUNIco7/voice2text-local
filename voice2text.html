@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>音频转文字 - 本地版</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f6fa;
+      --card: #ffffff;
+      --primary: #4f6ef7;
+      --primary-dark: #3a56d4;
+      --primary-light: #eef0fe;
+      --text: #1a1a2e;
+      --text-muted: #8b8da3;
+      --border: #e2e4ef;
+      --success: #22c55e;
+      --error: #ef4444;
+      --radius: 14px;
+    }
+
+    body {
+      font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo {
+      width: 36px; height: 36px;
+      background: var(--primary);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    header h1 { font-size: 17px; font-weight: 600; }
+    .tag {
+      font-size: 11px;
+      background: var(--primary-light);
+      color: var(--primary);
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+
+    /* ── Main ── */
+    main {
+      flex: 1;
+      max-width: 760px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title::before {
+      content: "";
+      width: 4px; height: 16px;
+      background: var(--primary);
+      border-radius: 2px;
+    }
+
+    /* ── Upload Zone ── */
+    #uploadZone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    #uploadZone:hover, #uploadZone.dragover {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+    #uploadZone .icon { font-size: 42px; margin-bottom: 12px; }
+    #uploadZone p { color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+    #uploadZone .formats {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    #fileInput { display: none; }
+
+    /* ── File Info ── */
+    #fileInfo {
+      display: none;
+      background: var(--primary-light);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+    #fileInfo.show { display: flex; align-items: center; gap: 12px; }
+    #fileInfo .file-icon { font-size: 28px; }
+    #fileInfo .file-meta { flex: 1; }
+    #fileInfo .file-name { font-size: 14px; font-weight: 600; word-break: break-all; }
+    #fileInfo .file-size { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    #fileInfo .remove-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 20px; color: var(--text-muted);
+      padding: 4px; border-radius: 6px;
+      transition: background 0.15s;
+    }
+    #fileInfo .remove-btn:hover { background: rgba(0,0,0,0.08); }
+
+    /* ── Buttons ── */
+    .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+    .btn {
+      flex: 1;
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: none;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+    .btn-primary:disabled { background: #b8bddb; cursor: not-allowed; transform: none; }
+    .btn-outline {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1.5px solid var(--border);
+    }
+    .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* ── Server Status ── */
+    #serverStatus {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-bottom: 4px;
+    }
+    #serverStatus.ok { background: #f0fdf4; color: #15803d; }
+    #serverStatus.off { background: #fef2f2; color: #b91c1c; }
+    #serverStatus.dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    #serverStatus.ok .dot { background: #22c55e; }
+    #serverStatus.off .dot { background: #ef4444; }
+
+    /* ── Progress ── */
+    #progressArea { display: none; margin-top: 16px; }
+    #progressArea.show { display: block; }
+    .progress-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .progress-track {
+      height: 8px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), #7b9cff);
+      border-radius: 4px;
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid var(--primary-light);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result ── */
+    #resultArea { display: none; margin-top: 16px; }
+    #resultArea.show { display: block; }
+    .result-meta {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .result-meta span { display: flex; align-items: center; gap: 4px; }
+
+    textarea {
+      width: 100%;
+      min-height: 260px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 14px;
+      line-height: 1.8;
+      font-family: inherit;
+      resize: vertical;
+      color: var(--text);
+      transition: border-color 0.2s;
+    }
+    textarea:focus { outline: none; border-color: var(--primary); }
+    textarea.readonly { background: #fafbff; }
+
+    .action-row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+    .btn-sm {
+      padding: 8px 16px;
+      font-size: 13px;
+      border-radius: 8px;
+      border: 1.5px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      display: flex; align-items: center; gap: 5px;
+      transition: all 0.15s;
+      font-weight: 500;
+    }
+    .btn-sm:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+    .btn-sm.success { border-color: var(--success); color: var(--success); background: #f0fdf4; }
+    #copyBtn.copied { border-color: var(--success); color: var(--success); background: #f0fdf4; }
+
+    /* ── Tips ── */
+    .tips {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.7;
+      background: #f8f9fc;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-top: 16px;
+    }
+    .tips strong { color: var(--text); }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--primary); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🎙️</div>
+  <h1>音频转文字</h1>
+  <span class="tag">本地版</span>
+</header>
+
+<main>
+
+  <!-- 服务状态 -->
+  <div id="serverStatus" class="ok">
+    <span class="dot"></span>
+    <span id="statusText">正在检测本地服务...</span>
+  </div>
+
+  <!-- 上传卡片 -->
+  <div class="card">
+    <div class="card-title">上传音视频文件</div>
+
+    <div id="uploadZone">
+      <div class="icon">📁</div>
+      <p>将文件拖拽到此处<br>或点击选择文件</p>
+      <div class="formats">支持 MP3 / WAV / MP4 / MOV / M4A / AMR / AAC，单文件最大 500MB</div>
+    </div>
+    <input type="file" id="fileInput" accept=".mp3,.wav,.mp4,.mov,.m4a,.amr,.aac,.flac,.ogg,.mkv">
+
+    <div id="fileInfo">
+      <div class="file-icon">🎵</div>
+      <div class="file-meta">
+        <div class="file-name" id="fileName"></div>
+        <div class="file-size" id="fileSize"></div>
+      </div>
+      <button class="remove-btn" id="removeBtn" title="移除文件">✕</button>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="convertBtn" disabled>
+        <span>🔄</span> 开始转换
+      </button>
+    </div>
+
+    <div id="progressArea">
+      <div class="progress-label">
+        <span><span class="spinner"></span> &nbsp;<span id="progressText">正在处理...</span></span>
+        <span id="progressPct">0%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 结果卡片 -->
+  <div class="card" id="resultCard" style="display:none">
+    <div class="card-title">转换结果</div>
+    <div class="result-meta" id="resultMeta"></div>
+    <textarea id="resultText" class="readonly" readonly placeholder="转写结果将在此显示..."></textarea>
+    <div class="action-row">
+      <button class="btn-sm" id="copyBtn" onclick="copyText()">📋 复制文字</button>
+      <button class="btn-sm" id="downloadTxtBtn" onclick="downloadTxt()">💾 下载 TXT</button>
+      <button class="btn-sm" id="downloadSrtBtn" onclick="downloadSrt()">🎬 下载 SRT 字幕</button>
+    </div>
+  </div>
+
+  <!-- 使用说明 -->
+  <div class="card">
+    <div class="card-title">使用说明</div>
+    <div class="tips">
+      <strong>第一步：</strong>启动本地服务<br>
+      在终端运行以下命令（需要 Python + faster-whisper）：<br>
+      <code style="background:#eef0fe;padding:2px 6px;border-radius:4px;font-size:11px">pip install faster-whisper</code><br>
+      然后运行 <code style="background:#eef0fe;padding:2px 6px;border-radius:4px;font-size:11px">python transcribe_server.py</code>（内置服务脚本，自动启动端口8765）<br><br>
+      <strong>第二步：</strong>确保浏览器打开本页面后，状态显示「服务已就绪」<br><br>
+      <strong>第三步：</strong>上传音频/视频文件，点击「开始转换」，等待结果<br><br>
+      <strong>安全说明：</strong>所有文件仅在本地处理，不会上传到任何服务器。
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  本地运行 · 隐私安全 · 不上传任何文件
+</footer>
+
+<script>
+  const API_BASE = 'http://localhost:8765';
+  let currentFile = null;
+  let currentResult = null;   // { text, segments }
+  let currentSrt = null;
+
+  // ── Elements ──
+  const uploadZone    = document.getElementById('uploadZone');
+  const fileInput     = document.getElementById('fileInput');
+  const fileInfo      = document.getElementById('fileInfo');
+  const fileNameEl    = document.getElementById('fileName');
+  const fileSizeEl    = document.getElementById('fileSize');
+  const removeBtn     = document.getElementById('removeBtn');
+  const convertBtn    = document.getElementById('convertBtn');
+  const progressArea  = document.getElementById('progressArea');
+  const progressFill  = document.getElementById('progressFill');
+  const progressPct  = document.getElementById('progressPct');
+  const progressText = document.getElementById('progressText');
+  const resultCard   = document.getElementById('resultCard');
+  const resultMeta   = document.getElementById('resultMeta');
+  const resultText   = document.getElementById('resultText');
+  const copyBtn      = document.getElementById('copyBtn');
+
+  // ── Server status check ──
+  async function checkServer() {
+    const statusEl = document.getElementById('serverStatus');
+    const textEl   = document.getElementById('statusText');
+    try {
+      const r = await fetch(`${API_BASE}/status`);
+      const d = await r.json();
+      if (d.ok) {
+        statusEl.className = 'ok';
+        textEl.textContent = `服务已就绪 · faster-whisper ${d.model} · ${d.lang}`;
+        convertBtn.disabled = !currentFile;
+      }
+    } catch {
+      statusEl.className = 'off';
+      textEl.textContent = '本地服务未启动，请先运行 python transcribe_server.py';
+      convertBtn.disabled = true;
+    }
+  }
+
+  // ── Drag & Drop ──
+  uploadZone.addEventListener('click', () => fileInput.click());
+  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    const f = e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+  fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+  function handleFile(f) {
+    currentFile = f;
+    fileNameEl.textContent = f.name;
+    fileSizeEl.textContent = formatSize(f.size);
+    fileInfo.classList.add('show');
+    convertBtn.disabled = false;
+    resultCard.style.display = 'none';
+  }
+
+  removeBtn.addEventListener('click', () => {
+    currentFile = null;
+    fileInput.value = '';
+    fileInfo.classList.remove('show');
+    convertBtn.disabled = true;
+    resultCard.style.display = 'none';
+  });
+
+  // ── Convert ──
+  convertBtn.addEventListener('click', async () => {
+    if (!currentFile) return;
+    const btn = convertBtn;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> 转换中...';
+
+    const formData = new FormData();
+    formData.append('file', currentFile);
+
+    progressArea.classList.add('show');
+    progressFill.style.width = '0%';
+    progressPct.textContent = '0%';
+    progressText.textContent = '正在上传文件...';
+    resultCard.style.display = 'none';
+
+    try {
+      // Upload
+      const up = await fetch(`${API_BASE}/transcribe`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!up.ok) {
+        const err = await up.json().catch(() => ({}));
+        throw new Error(err.error || `服务器错误 ${up.status}`);
+      }
+
+      progressFill.style.width = '60%';
+      progressPct.textContent = '60%';
+      progressText.textContent = '正在识别语音...';
+
+      const data = await up.json();
+      currentResult = data;
+      currentSrt    = data.srt;
+
+      progressFill.style.width = '100%';
+      progressPct.textContent = '100%';
+      progressText.textContent = '转换完成！';
+
+      // Show result
+      resultText.value = data.text;
+      const dur = formatDuration(data.duration);
+      const segs = data.segments ? data.segments.length : 0;
+      resultMeta.innerHTML = `
+        <span>⏱ ${dur}</span>
+        <span>📝 ${segs} 段</span>
+        <span>🔤 ${data.text.length} 字</span>
+      `;
+      resultCard.style.display = 'block';
+      setTimeout(() => { progressArea.classList.remove('show'); }, 800);
+
+    } catch (err) {
+      progressText.textContent = '错误: ' + err.message;
+      progressFill.style.background = 'var(--error)';
+      setTimeout(() => {
+        progressArea.classList.remove('show');
+        progressFill.style.background = '';
+      }, 3000);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<span>🔄</span> 开始转换';
+    }
+  });
+
+  // ── Actions ──
+  function copyText() {
+    navigator.clipboard.writeText(resultText.value).then(() => {
+      copyBtn.textContent = '✅ 已复制';
+      copyBtn.classList.add('copied');
+      setTimeout(() => {
+        copyBtn.innerHTML = '📋 复制文字';
+        copyBtn.classList.remove('copied');
+      }, 2000);
+    });
+  }
+
+  function downloadTxt() {
+    const blob = new Blob([resultText.value], { type: 'text/plain;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement('a'), { href: url, download: (currentFile.name.replace(/\.[^.]+$/, '')) + '_字幕.txt' });
+    a.click();
+    URL.revokeObjectURL(url);
+    const btn = document.getElementById('downloadTxtBtn');
+    btn.classList.add('success');
+    setTimeout(() => btn.classList.remove('success'), 2000);
+  }
+
+  function downloadSrt() {
+    if (!currentSrt) return;
+    const blob = new Blob([currentSrt], { type: 'text/plain;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement('a'), { href: url, download: (currentFile.name.replace(/\.[^.]+$/, '')) + '_字幕.srt' });
+    a.click();
+    URL.revokeObjectURL(url);
+    const btn = document.getElementById('downloadSrtBtn');
+    btn.classList.add('success');
+    setTimeout(() => btn.classList.remove('success'), 2000);
+  }
+
+  // ── Utils ──
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+  }
+  function formatDuration(sec) {
+    if (!sec) return '—';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}分${s}秒`;
+  }
+
+  // ── Boot ──
+  checkServer();
+  setInterval(checkServer, 8000);
+</script>
+</body>
+</html>
