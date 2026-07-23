@@ -216,12 +216,11 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    port = 8765
+    port = int(os.environ.get("PORT", 8765))
     print("=" * 45)
     print("  [V2T] Audio-to-Text Local Server")
     print("=" * 45)
-    print(f"  Open: http://localhost:{port}")
-    print("  Or open: voice2text.html in browser")
+    print(f"  Port: {port}")
     print("  Ctrl+C to stop")
     print("=" * 45)
     server = HTTPServer(("0.0.0.0", port), Handler)
