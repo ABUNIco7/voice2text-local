@@ -370,7 +370,8 @@
 </footer>
 
 <script>
-  const API_BASE = 'http://localhost:8765';
+  // Same-origin: works for both local (http://localhost:8765) and Railway (https://xxx.up.railway.app)
+  const API_BASE = '';
   let currentFile = null;
   let currentResult = null;   // { text, segments }
   let currentSrt = null;
