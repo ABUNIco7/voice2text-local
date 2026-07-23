@@ -216,15 +216,17 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    port = int(os.environ.get("PORT", 8765))
+    # Railway / Heroku style: use PORT env var when available
+    port = int(os.environ.get("PORT", "8765"))
+    host = "0.0.0.0"
     print("=" * 45)
     print("  [V2T] Audio-to-Text Local Server")
     print("=" * 45)
-    print(f"  Port: {port}")
+    print(f"  Listening on http://{host}:{port}")
     print("  Ctrl+C to stop")
     print("=" * 45)
-    server = HTTPServer(("0.0.0.0", port), Handler)
-    print(f"[Server] Listening on {port} ...")
+    server = HTTPServer((host, port), Handler)
+    print(f"[Server] Ready on {host}:{port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
