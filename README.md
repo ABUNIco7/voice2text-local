@@ -54,3 +54,16 @@ python transcribe_server.py
 ## License
 
 MIT
+
+## Railway 部署
+
+依赖文件已配置好，可直接部署到 Railway：
+
+1. 在 Railway 选择 **Deploy from GitHub repo**
+2. 选择本仓库（`ABUNIco7/voice2text-local`）
+3. Railway 会自动检测 `Procfile` 并运行 `python transcribe_server.py`
+4. 部署完成后到 **Settings → Networking** 生成公开域名
+
+Railway 会自动传入 `PORT` 环境变量，服务会监听对应端口。
+
+> ⚠️ 注意：first request 时 faster-whisper 会下载约 141MB 的模型文件，冷启动较慢。Railway 免费额度有限，建议主要在本地使用。
