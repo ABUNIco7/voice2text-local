@@ -261,6 +261,47 @@
     .btn-sm.success { border-color: var(--success); color: var(--success); background: #f0fdf4; }
     #copyBtn.copied { border-color: var(--success); color: var(--success); background: #f0fdf4; }
 
+    /* ── Headline Generator ── */
+    #headlineCard { display: none; margin-top: 16px; }
+    #headlineCard.show { display: block; }
+    .headline-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+    .headline-tab {
+      padding: 7px 18px; border-radius: 8px; border: 1.5px solid var(--border);
+      background: var(--card); color: var(--text); font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .headline-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .headline-tab:not(.active):hover { border-color: var(--primary); color: var(--primary); }
+    .headline-panel { display: none; }
+    .headline-panel.active { display: block; }
+    .headline-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 14px; border-radius: 10px; background: #f8f9fc;
+      margin-bottom: 10px; border: 1.5px solid var(--border);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .headline-item:hover { border-color: var(--primary); background: var(--primary-light); }
+    .headline-item.selected { border-color: var(--success); background: #f0fdf4; }
+    .headline-label {
+      font-size: 11px; font-weight: 700; color: #fff;
+      padding: 2px 8px; border-radius: 20px; flex-shrink: 0; margin-top: 2px;
+    }
+    .label-a { background: #ef4444; }
+    .label-b { background: #22c55e; }
+    .headline-text { font-size: 15px; line-height: 1.6; font-weight: 600; color: var(--text); flex: 1; }
+    .headline-char { font-size: 11px; color: var(--text-muted); flex-shrink: 0; margin-top: 3px; }
+    .headline-badge { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .headline-badge span { display: flex; align-items: center; gap: 3px; }
+    .headline-section-label {
+      font-size: 12px; font-weight: 600; color: var(--text-muted);
+      margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .no-result-tip {
+      text-align: center; padding: 30px; color: var(--text-muted);
+      font-size: 14px; line-height: 1.8;
+    }
+    .no-result-tip strong { color: var(--text); display: block; margin-bottom: 6px; font-size: 15px; }
+
     /* ── Tips ── */
     .tips {
       font-size: 12px;
@@ -346,6 +387,40 @@
       <button class="btn-sm" id="copyBtn" onclick="copyText()">📋 复制文字</button>
       <button class="btn-sm" id="downloadTxtBtn" onclick="downloadTxt()">💾 下载 TXT</button>
       <button class="btn-sm" id="downloadSrtBtn" onclick="downloadSrt()">🎬 下载 SRT 字幕</button>
+      <button class="btn-sm" id="genHeadlineBtn" onclick="generateHeadlines()">✨ 生成标题</button>
+    </div>
+
+    <!-- 标题生成结果 -->
+    <div id="headlineCard">
+      <div class="headline-tabs">
+        <button class="headline-tab active" onclick="switchTab('a')" id="tabA">🔴 A版·警示型</button>
+        <button class="headline-tab" onclick="switchTab('b')" id="tabB">🟢 B版·温情型</button>
+      </div>
+
+      <!-- A版·警示型 -->
+      <div class="headline-panel active" id="panelA">
+        <div class="headline-section-label">推荐 · 警示 + 共鸣型</div>
+        <div id="headlinesA"></div>
+        <div class="no-result-tip" id="noHeadlineA" style="display:none">
+          <strong>无法生成 A 版标题</strong>
+          请确保音频内容包含明确的因果关系或警示信息
+        </div>
+      </div>
+
+      <!-- B版·温情型 -->
+      <div class="headline-panel" id="panelB">
+        <div class="headline-section-label">备选 · 温情劝诫型</div>
+        <div id="headlinesB"></div>
+        <div class="no-result-tip" id="noHeadlineB" style="display:none">
+          <strong>无法生成 B 版标题</strong>
+          请确保音频内容包含明确的劝诫对象和共情场景
+        </div>
+      </div>
+
+      <div class="action-row" style="margin-top:14px">
+        <button class="btn-sm" id="copyHeadlineBtn" onclick="copyHeadline()">📋 复制选中的标题</button>
+        <button class="btn-sm" id="copyAllHeadlinesBtn" onclick="copyAllHeadlines()">📋 复制全部</button>
+      </div>
     </div>
   </div>
 
@@ -552,6 +627,284 @@
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);
     return `${m}分${s}秒`;
+  }
+
+  // ── Headline Generator ──
+  let selectedHeadline = null;
+  let allHeadlines = [];
+
+  function generateHeadlines() {
+    const text = (currentResult && currentResult.text) ? currentResult.text.trim() : '';
+    if (!text) {
+      alert('请先完成音频转换');
+      return;
+    }
+
+    const result = analyzeText(text);
+    const hlA = generateTypeA(result, text);
+    const hlB = generateTypeB(result, text);
+
+    allHeadlines = [...hlA, ...hlB];
+    selectedHeadline = null;
+
+    renderHeadlines('A', hlA);
+    renderHeadlines('B', hlB);
+
+    const card = document.getElementById('headlineCard');
+    card.classList.add('show');
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    document.getElementById('genHeadlineBtn').classList.add('success');
+    setTimeout(() => document.getElementById('genHeadlineBtn').classList.remove('success'), 2000);
+  }
+
+  // ── Text Analysis ──
+  function analyzeText(text) {
+    // Detect relationships
+    const relPatterns = [
+      { kw: '妈', rel: '妈', target: '子女', voc: ['妈', '妈', '妈妈', '妈'] },
+      { kw: '爸', rel: '爸', target: '子女', voc: ['爸', '爸', '爸爸'] },
+      { kw: '爸', rel: '爸', target: '子女', voc: ['爸', '爸', '爸爸'] },
+      { kw: '奶奶', rel: '奶奶', target: '孙辈', voc: ['奶奶', '您'] },
+      { kw: '爷爷', rel: '爷爷', target: '孙辈', voc: ['爷爷', '您'] },
+      { kw: '老公', rel: '老公', target: '夫妻', voc: ['老公', '你'] },
+      { kw: '老婆', rel: '老婆', target: '夫妻', voc: ['老婆', '你'] },
+      { kw: '儿子', rel: '儿子', target: '父母', voc: ['儿子', '你'] },
+      { kw: '女儿', rel: '女儿', target: '父母', voc: ['女儿', '你'] },
+      { kw: '朋友', rel: '朋友', target: '同龄', voc: ['朋友', '咱'] },
+      { kw: '阿姨', rel: '阿姨', target: '同龄', voc: ['阿姨', '您'] },
+      { kw: '叔叔', rel: '叔叔', target: '同龄', voc: ['叔叔', '您'] },
+      { kw: '姐', rel: '姐', target: '同龄', voc: ['姐', '你'] },
+      { kw: '哥', rel: '哥', target: '同龄', voc: ['哥', '你'] },
+    ];
+
+    let found = null;
+    for (const p of relPatterns) {
+      if (text.includes(p.kw)) { found = p; break; }
+    }
+
+    // Detect pain points (behavior → consequence)
+    const painPoints = [
+      { trigger: ['省钱', '舍不得', '凑合', '省着', '不讲究', '将就'],
+        scenario: '一直省着、凑合着',
+        consequence: '身体扛不住',
+        action: '别再省了', },
+      { trigger: ['咸', '盐', '咸菜', '重口味', '腌菜'],
+        scenario: '常年吃咸的',
+        consequence: '血管和肾都遭罪',
+        action: '少吃点咸的', },
+      { trigger: ['冷', '凉的', '冰', '贪凉', '喝凉'],
+        scenario: '总是喝凉的吃冷的',
+        consequence: '胃寒身体越来越虚',
+        action: '该暖暖了', },
+      { trigger: ['医院', '检查', '指标', '血压', '血糖', '血脂'],
+        scenario: '指标一年比一年差',
+        consequence: '拖下去真会出大问题',
+        action: '得认真管管了', },
+      { trigger: ['累', '乏力', '没劲', '走不动', '喘'],
+        scenario: '身体走几步就累',
+        consequence: '体能越来越差',
+        action: '该动起来了', },
+      { trigger: ['吃', '吃饭', '吃不下', '胃口'],
+        scenario: '吃饭没胃口、凑合',
+        consequence: '身体越来越虚',
+        action: '好好吃饭', },
+      { trigger: ['药', '不吃', '不按时', '忘了'],
+        scenario: '药总是想起来才吃',
+        consequence: '病情越来越重',
+        action: '药得按时吃', },
+      { trigger: ['睡眠', '睡不着', '失眠', '熬夜'],
+        scenario: '天天睡不好',
+        consequence: '免疫力越来越差',
+        action: '好好睡觉', },
+      { trigger: ['运动', '锻炼', '走路', '跑步'],
+        scenario: '从来不锻炼',
+        consequence: '身体越来越不行',
+        action: '该动动了', },
+    ];
+
+    let pain = null;
+    for (const p of painPoints) {
+      for (const t of p.trigger) {
+        if (text.includes(t)) { pain = p; break; }
+      }
+      if (pain) break;
+    }
+
+    // Detect emotional tone
+    const isWarning = text.includes('不要') || text.includes('不能') || text.includes('别') ||
+      text.includes('危险') || text.includes('后果') || text.includes('病') ||
+      text.includes('医院') || text.includes('指标') || text.includes('后悔');
+
+    const isWarm = text.includes('注意') || text.includes('好好') || text.includes('照顾') ||
+      text.includes('心疼') || text.includes('保重') || text.includes('爱') ||
+      text.includes('关心') || text.includes('该') || text.includes('咱');
+
+    return {
+      rel: found ? found.rel : '您',
+      voc: found ? found.voc[0] : '你',
+      target: found ? found.target : null,
+      pain: pain,
+      isWarning: isWarning,
+      isWarm: isWarm,
+    };
+  }
+
+  // ── Generate Type A (警示型) ──
+  function generateTypeA(info, text) {
+    const hl = [];
+    const V = info.voc; // address form
+
+    // A1: [他人/过去自己] → [现状] → [后果]
+    const a1Templates = [
+      `多少人跟${V}一样，以为省钱就是省心，結果身体先垮了`,
+      `${V}现在的状态，跟我见过的大多数老人一样——小问题拖成大毛病`,
+      `过来人含泪忠告：年轻时怎么省都行，老了真不能凑合`,
+      `多少人把'将就'当美德，最后把身体将就垮了`,
+      `${V}现在的习惯，跟我见过恢复慢的人一模一样`,
+    ];
+
+    // A2: Specific behavior → consequence
+    if (info.pain) {
+      const { scenario, consequence } = info.pain;
+      const a2Templates = [
+        `${V}天天${scenario}，${consequence}才明白已经晚了`,
+        `${V}总以为${scenario}没事，等到${consequence}才知道后悔`,
+        `${scenario}这件事，${consequence}_${V}该警醒了`,
+        `${V}还在${scenario}？_${consequence}_${V}还不重视？`,
+      ];
+      for (const t of a2Templates) {
+        const cleaned = t.replace('_', '，');
+        if (cleaned.length <= 50) hl.push(cleaned);
+      }
+    }
+
+    // Fill remaining with templates
+    for (const t of a1Templates) {
+      if (hl.length >= 4) break;
+      if (!hl.includes(t) && t.length <= 50) hl.push(t);
+    }
+
+    // Fallback if still empty
+    if (hl.length === 0) {
+      hl.push(`很多${info.target || '老人'}都是这样把小问题拖成大毛病`);
+    }
+
+    return [...new Set(hl)].slice(0, 4).filter(t => t.length <= 50 && t.length > 5);
+  }
+
+  // ── Generate Type B (温情型) ──
+  function generateTypeB(info, text) {
+    const hl = [];
+    const R = info.rel;  // relationship
+    const V = info.voc;  // vocative
+
+    // B1: Warm address + pain detail + plea
+    if (info.pain) {
+      const { scenario, consequence, action } = info.pain;
+      const b1Templates = [
+        `${R}，${scenario}_${action}_身体是本钱`,
+        `${R}，${consequence}_${action}别再不当回事了`,
+        `心疼${V}，${scenario}_${action}还来得及`,
+        `${V}这样_${scenario}_${R}看了真的很担心`,
+        `${R}，${scenario}_${action}_这事不能再拖了`,
+      ];
+      for (const t of b1Templates) {
+        const cleaned = t.replace(/_/g, '，').replace(/，{2,}/g, '，').trim();
+        if (cleaned.length <= 50) hl.push(cleaned);
+      }
+    }
+
+    // B2: Generic warm templates
+    const b2Templates = [
+      `${R}，钱可以慢慢攒，身体经不起折腾`,
+      `${R}，照顾好自己才是最大的负责`,
+      `${R}，您的身体是全家的牵挂，别不当回事`,
+      `${V}能照顾好自己，儿女在外才安心`,
+      `${R}，好好吃饭、按时休息，是最简单的养生`,
+      `${V}健康，就是给儿女最好的礼物`,
+      `${R}，从今天开始好好爱自己`,
+    ];
+
+    for (const t of b2Templates) {
+      if (hl.length >= 4) break;
+      if (!hl.includes(t) && t.length <= 50) hl.push(t);
+    }
+
+    // Fallback
+    if (hl.length === 0) {
+      hl.push(`${R}，照顾好自己，身体是最重要的`);
+    }
+
+    return [...new Set(hl)].slice(0, 4).filter(t => t.length <= 50 && t.length > 5);
+  }
+
+  // ── Render ──
+  function renderHeadlines(type, headlines) {
+    const container = document.getElementById(`headlines${type}`);
+    const noResult = document.getElementById(`noHeadline${type}`);
+
+    if (!headlines || headlines.length === 0) {
+      container.innerHTML = '';
+      noResult.style.display = 'block';
+      return;
+    }
+
+    noResult.style.display = 'none';
+    container.innerHTML = headlines.map((h, i) => {
+      const label = type === 'A' ? 'A' : 'B';
+      const labelClass = type === 'A' ? 'label-a' : 'label-b';
+      return `
+        <div class="headline-item" onclick="selectHeadline(this, '${escapeHtml(h)}')" data-text="${escapeHtml(h)}">
+          <span class="headline-label ${labelClass}">${label}${i + 1}</span>
+          <span class="headline-text">${escapeHtml(h)}</span>
+          <span class="headline-char">${h.length}字</span>
+        </div>`;
+    }).join('');
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  // ── Tab Switch ──
+  function switchTab(tab) {
+    document.querySelectorAll('.headline-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.headline-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(`tab${tab.toUpperCase()}`).classList.add('active');
+    document.getElementById(`panel${tab.toUpperCase()}`).classList.add('active');
+  }
+
+  // ── Select Headline ──
+  function selectHeadline(el, text) {
+    document.querySelectorAll('.headline-item').forEach(i => i.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedHeadline = text;
+  }
+
+  // ── Copy ──
+  function copyHeadline() {
+    if (!selectedHeadline) {
+      alert('请点击选择一条标题');
+      return;
+    }
+    navigator.clipboard.writeText(selectedHeadline).then(() => {
+      const btn = document.getElementById('copyHeadlineBtn');
+      btn.textContent = '✅ 已复制';
+      btn.classList.add('success');
+      setTimeout(() => { btn.innerHTML = '📋 复制选中的标题'; btn.classList.remove('success'); }, 2000);
+    });
+  }
+
+  function copyAllHeadlines() {
+    if (!allHeadlines.length) return;
+    const text = allHeadlines.map((h, i) => h).join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copyAllHeadlinesBtn');
+      btn.textContent = '✅ 已复制全部';
+      btn.classList.add('success');
+      setTimeout(() => { btn.innerHTML = '📋 复制全部'; btn.classList.remove('success'); }, 2000);
+    });
   }
 
   // ── Boot ──
